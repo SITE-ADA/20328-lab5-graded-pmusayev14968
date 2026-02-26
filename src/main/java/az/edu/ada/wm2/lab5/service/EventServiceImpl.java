@@ -101,7 +101,21 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public List<Event> getEventsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice) { return List.of(); }
+    public List<Event> getEventsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
+        List<Event> all = eventRepository.findAll();
+        List<Event> matched = new ArrayList<>();
+
+        BigDecimal low = (minPrice != null) ? minPrice : BigDecimal.ZERO;
+        BigDecimal high = (maxPrice != null) ? maxPrice : new BigDecimal("1000000000");
+
+        for (Event ev : all) {
+            BigDecimal price = ev.getTicketPrice();
+            if (price != null && price.compareTo(low) >= 0 && price.compareTo(high) <= 0) {
+                matched.add(ev);
+            }
+        }
+        return matched;
+    }
 
     @Override
     public List<Event> getEventsByDateRange(LocalDateTime start, LocalDateTime end) { return List.of(); }
@@ -109,3 +123,6 @@ public class EventServiceImpl implements EventService {
     @Override
     public Event updateEventPrice(UUID id, BigDecimal newPrice) { return null; }
 }
+
+
+
