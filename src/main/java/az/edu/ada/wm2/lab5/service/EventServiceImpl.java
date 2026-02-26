@@ -4,12 +4,13 @@ import az.edu.ada.wm2.lab5.model.Event;
 import az.edu.ada.wm2.lab5.repository.EventRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 public class EventServiceImpl implements EventService {
@@ -62,50 +63,85 @@ public class EventServiceImpl implements EventService {
         Event existingEvent = eventRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Event not found with id: " + id));
 
-        // Update only non-null fields
-        if (partialEvent.getEventName() != null) {
-            existingEvent.setEventName(partialEvent.getEventName());
-        }
-        if (partialEvent.getTags() != null && !partialEvent.getTags().isEmpty()) {
-            existingEvent.setTags(partialEvent.getTags());
-        }
-        if (partialEvent.getTicketPrice() != null) {
-            existingEvent.setTicketPrice(partialEvent.getTicketPrice());
-        }
-        if (partialEvent.getEventDateTime() != null) {
-            existingEvent.setEventDateTime(partialEvent.getEventDateTime());
-        }
-        if (partialEvent.getDurationMinutes() > 0) {
-            existingEvent.setDurationMinutes(partialEvent.getDurationMinutes());
-        }
+        if (partialEvent.getEventName() != null) existingEvent.setEventName(partialEvent.getEventName());
+        if (partialEvent.getTags() != null && !partialEvent.getTags().isEmpty()) existingEvent.setTags(partialEvent.getTags());
+        if (partialEvent.getTicketPrice() != null) existingEvent.setTicketPrice(partialEvent.getTicketPrice());
+        if (partialEvent.getEventDateTime() != null) existingEvent.setEventDateTime(partialEvent.getEventDateTime());
+        if (partialEvent.getDurationMinutes() > 0) existingEvent.setDurationMinutes(partialEvent.getDurationMinutes());
 
         return eventRepository.save(existingEvent);
     }
 
-    // Custom methods
     @Override
     public List<Event> getEventsByTag(String tag) {
-        return List.of();
+        List<Event> allEvents = eventRepository.findAll();
+        List<Event> results = new ArrayList<>();
+        if (tag == null || tag.isEmpty()) return results;
+
+        for (Event e : allEvents) {
+            if (e.getTags() != null && e.getTags().contains(tag)) {
+                results.add(e);
+            }
+        }
+        return results;
     }
 
     @Override
     public List<Event> getUpcomingEvents() {
-        return List.of();
+        List<Event> all = eventRepository.findAll();
+        List<Event> upcoming = new ArrayList<>();
+        LocalDateTime now = LocalDateTime.now();
+
+        for (Event event : all) {
+            if (event.getEventDateTime() != null && event.getEventDateTime().isAfter(now)) {
+                upcoming.add(event);
+            }
+        }
+        return upcoming;
     }
 
     @Override
     public List<Event> getEventsByPriceRange(BigDecimal minPrice, BigDecimal maxPrice) {
-       return List.of();
+        List<Event> all = eventRepository.findAll();
+        List<Event> matched = new ArrayList<>();
+
+        BigDecimal low = (minPrice != null) ? minPrice : BigDecimal.ZERO;
+        BigDecimal high = (maxPrice != null) ? maxPrice : new BigDecimal("1000000000");
+
+        for (Event ev : all) {
+            BigDecimal price = ev.getTicketPrice();
+            if (price != null && price.compareTo(low) >= 0 && price.compareTo(high) <= 0) {
+                matched.add(ev);
+            }
+        }
+        return matched;
     }
 
     @Override
     public List<Event> getEventsByDateRange(LocalDateTime start, LocalDateTime end) {
-        return List.of();
+        List<Event> results = new ArrayList<>();
+        if (start == null || end == null) return results;
+
+        List<Event> all = eventRepository.findAll();
+        for (Event e : all) {
+            LocalDateTime dt = e.getEventDateTime();
+            if (dt != null && !dt.isBefore(start) && !dt.isAfter(end)) {
+                results.add(e);
+            }
+        }
+        return results;
     }
 
+    @Transactional
     @Override
     public Event updateEventPrice(UUID id, BigDecimal newPrice) {
-        return null;
+        if (newPrice == null || newPrice.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Invalid price");
+        }
+        Event target = eventRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Event not found: " + id));
+        target.setTicketPrice(newPrice);
+        return eventRepository.save(target);
     }
-
 }
+
