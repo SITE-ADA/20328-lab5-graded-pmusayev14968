@@ -118,7 +118,19 @@ public class EventServiceImpl implements EventService {
     }
 
     @Override
-    public List<Event> getEventsByDateRange(LocalDateTime start, LocalDateTime end) { return List.of(); }
+    public List<Event> getEventsByDateRange(LocalDateTime start, LocalDateTime end) {
+        List<Event> results = new ArrayList<>();
+        if (start == null || end == null) return results;
+
+        List<Event> all = eventRepository.findAll();
+        for (Event e : all) {
+            LocalDateTime dt = e.getEventDateTime();
+            if (dt != null && !dt.isBefore(start) && !dt.isAfter(end)) {
+                results.add(e);
+            }
+        }
+        return results;
+    }
 
     @Override
     public Event updateEventPrice(UUID id, BigDecimal newPrice) { return null; }
